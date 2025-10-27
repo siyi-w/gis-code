@@ -19,4 +19,5 @@ gitcreds_erase()
 package 'gitcreds'successfully unpacked and MD5 sums checked
 install.packages("gitcreds")
 library(gitcreds)
+use_github()
 1
