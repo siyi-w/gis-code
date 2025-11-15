@@ -1,0 +1,89 @@
+---
+title: "prac4"
+author: "siyi"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r cars}
+summary(cars)
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+library(sf)
+world <- st_read("World_Countries.geojson")
+```
+```{r}
+library(readr)
+gii <- read_csv("hdr-data.csv")
+```
+
+```{r}
+library(countrycode)
+```
+
+```{r}
+gii$country <- as.character(gii$country)
+```
+```{r}
+gii$iso3 <- countrycode(gii$country, "country.name", "iso3c")
+```
+```{r}
+library(dplyr)
+
+# 选择性别不平等指标（假设 indexCode == "GII"）
+gii_gii <- gii %>%
+  filter(indexCode == "GII", year %in% 2010:2019) %>%
+  select(country, iso3, year, value)
+```
+```{r}
+gii_diff <- gii_gii %>%
+  group_by(country, iso3) %>%
+  summarise(gii_diff = value[year == 2019] - value[year == 2010])
+```
+```{r}
+library(sf)
+
+# 读取世界空间数据
+world <- st_read("World_Countries.geojson")
+
+# 合并
+world <- world %>%
+  left_join(gii_diff, by = c("ISO" = "iso3"))
+
+# 保存新的 geojson
+st_write(world, "world_gii_diff1.geojson")
+```
+```{r}
+names(world)[duplicated(names(world))]
+```
+```{r}
+names(world)
+```
+```{r}
+world <- world %>% 
+  rename(country_name = country)
+```
+```{r}
+st_write(world, "world_gii_diff1.geojson")
+```
+
