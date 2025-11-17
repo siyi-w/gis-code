@@ -15,75 +15,55 @@ This is an R Markdown document. Markdown is a simple formatting syntax for autho
 
 When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
 
-```{r cars}
-summary(cars)
-```
 
-## Including Plots
-
-You can also embed plots, for example:
-
-```{r pressure, echo=FALSE}
-plot(pressure)
-```
-
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
 ```{r}
 library(sf)
-world <- st_read("World_Countries.geojson")
-```
-```{r}
-library(readr)
-gii <- read_csv("hdr-data.csv")
-```
-
-```{r}
+library(tidyverse)
+library(here)
+library(janitor)
 library(countrycode)
+library(readr)
+```
+```{r}
+world <- st_read("prac4-data/World_Countries.geojson")
+HDI <- read_csv(here::here("prac4-data/hdr-data-11.csv"),
+                na="",skip=0)
+```
+```{r}
+HDIcols<- HDI %>%
+  clean_names() %>%
+ # 只保留真正的国家名称（过滤掉 Arab States, World 等）
+  filter(country %in% countrycode::codelist$country.name.en) %>%
+  
+  # 只保留 GII 指标
+  filter(indicator_code == "gii") %>%
+  
+  # 只保留 2019 和 2020（如果数据里没有 2020，这一步会自动只保留 2019）
+  filter(year %in% c(2019, 2020)) %>% 
+  
+  select(country_iso_code, country, year, value) %>%
+  
+  # 宽格式：每国家一行
+  pivot_wider(
+    names_from = year,
+    values_from = value,
+    names_prefix = "gii_"
+  ) %>%
+  
+  # 生成 ISO2（for maps）
+  mutate(
+    iso2 = countrycode(country_iso_code, "iso3c", "iso2c")
+  )
 ```
 
 ```{r}
-gii$country <- as.character(gii$country)
+Join_HDI<- world %>%
+  clean_names() %>%
+  left_join(.,
+            HDIcols,
+            by = c("iso"="iso2"))
 ```
-```{r}
-gii$iso3 <- countrycode(gii$country, "country.name", "iso3c")
-```
-```{r}
-library(dplyr)
 
-# 选择性别不平等指标（假设 indexCode == "GII"）
-gii_gii <- gii %>%
-  filter(indexCode == "GII", year %in% 2010:2019) %>%
-  select(country, iso3, year, value)
-```
-```{r}
-gii_diff <- gii_gii %>%
-  group_by(country, iso3) %>%
-  summarise(gii_diff = value[year == 2019] - value[year == 2010])
-```
-```{r}
-library(sf)
 
-# 读取世界空间数据
-world <- st_read("World_Countries.geojson")
 
-# 合并
-world <- world %>%
-  left_join(gii_diff, by = c("ISO" = "iso3"))
-
-# 保存新的 geojson
-st_write(world, "world_gii_diff1.geojson")
-```
-```{r}
-names(world)[duplicated(names(world))]
-```
-```{r}
-names(world)
-```
-```{r}
-world <- world %>% 
-  rename(country_name = country)
-```
-```{r}
-st_write(world, "world_gii_diff1.geojson")
-```
 
